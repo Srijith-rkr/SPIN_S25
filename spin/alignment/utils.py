@@ -46,6 +46,8 @@ class DataCollatorWithPadding:
     truncation_mode: str = "keep_end"
     is_encoder_decoder: Optional[bool] = False
     max_target_length: Optional[int] = None
+    flag_for_logp: bool = False 
+
 
     def tokenize_batch_element(
         self,
@@ -214,6 +216,7 @@ class DataCollatorWithPadding:
 
     def __call__(self, features: List[Dict[str, Any]]) -> Dict[str, Any]:
         tokenized_batch = []
+        feature_batch = []
 
         for feature in features:
             prompt = feature["prompt"]
@@ -221,7 +224,15 @@ class DataCollatorWithPadding:
             rejected = feature["generated"]
 
             batch_element = self.tokenize_batch_element(prompt, chosen, rejected)
-            tokenized_batch.append(batch_element)
+
+            if self.flag_for_logp:
+                feature_batch.append(feature)
+                tokenized_batch.append(batch_element)
+            else:
+                tokenized_batch.append(batch_element)
 
         # return collated batch
-        return self.collate(tokenized_batch)
+        if self.flag_for_logp:
+            return feature_batch, self.collate(tokenized_batch)
+        else:
+            return self.collate(tokenized_batch)
