@@ -196,6 +196,10 @@ class DataArguments:
         default=None,
         metadata={"help": ("Datasets and their proportions to be used for training ift/rl.")},
     )
+    local_dataset_mixer: Optional[List[str]] = field(
+        default=None,
+        metadata={"help": ("Datasets and their proportions to be used for training ift/rl.")},
+    )
     dataset_splits: Optional[List[str]] = field(
         default_factory=lambda: ["train", "test"],
         metadata={"help": ("List of train test splits to use in the dataset")},
@@ -224,6 +228,10 @@ class DataArguments:
     )
     truncation_side: Optional[str] = field(
         default=None, metadata={"help": "Truncation side to use for the tokenizer."}
+    )
+
+    use_local_dataset: Optional[bool] = field(
+        default=False, metadata={"help": "Will use local dataset if specified"}
     )
 
 

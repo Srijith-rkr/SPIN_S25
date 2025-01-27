@@ -272,13 +272,13 @@ class SPINTrainer(Trainer):
 
             data_collator = DataCollatorWithPadding(
                 tokenizer,
-                max_length=max_length,
-                max_prompt_length=max_prompt_length,
-                label_pad_token_id=label_pad_token_id,
-                padding_value=padding_value,
-                truncation_mode=truncation_mode,
-                is_encoder_decoder=self.is_encoder_decoder,
-                max_target_length=max_target_length,
+                max_length=max_length, # 1024
+                max_prompt_length=max_prompt_length, #512
+                label_pad_token_id=label_pad_token_id, # -100
+                padding_value=padding_value, # 0
+                truncation_mode=truncation_mode, # 'keep_end'
+                is_encoder_decoder=self.is_encoder_decoder, # False
+                max_target_length=max_target_length, # None
             )
 
             if args.remove_unused_columns:
@@ -388,13 +388,13 @@ class SPINTrainer(Trainer):
         if self.is_encoder_decoder:
             max_length = max(batch["real_labels"].shape[1], batch["generated_labels"].shape[1])
         else:
-            max_length = max(batch["real_input_ids"].shape[1], batch["generated_input_ids"].shape[1])
+            max_length = max(batch["real_input_ids"].shape[1], batch["generated_input_ids"].shape[1]) # this one is used
 
         for k in batch:
             if k.startswith("real") and isinstance(batch[k], torch.Tensor):
-                pad_value = self.label_pad_token_id if "labels" in k or self.is_encoder_decoder else self.padding_value
+                pad_value = self.label_pad_token_id if "labels" in k or self.is_encoder_decoder else self.padding_value # label_pad_token_id -100, padding value = 0
                 concatenated_key = k.replace("real", "concatenated")
-                concatenated_batch[concatenated_key] = pad_to_length(batch[k], max_length, pad_value=pad_value)
+                concatenated_batch[concatenated_key] = pad_to_length(batch[k], max_length, pad_value=pad_value) # from trl.trainer.utils import disable_dropout_in_model, pad_to_length
         for k in batch:
             if k.startswith("generated") and isinstance(batch[k], torch.Tensor):
                 pad_value = self.label_pad_token_id if "labels" in k or self.is_encoder_decoder else self.padding_value
@@ -407,13 +407,13 @@ class SPINTrainer(Trainer):
                     dim=0,
                 ).to(self.accelerator.device)
 
-        if self.is_encoder_decoder:
+        if self.is_encoder_decoder: # nope
             concatenated_batch["concatenated_input_ids"] = batch["prompt_input_ids"].repeat(2, 1)
             concatenated_batch["concatenated_attention_mask"] = batch["prompt_attention_mask"].repeat(2, 1)
 
         return concatenated_batch
 
-    def spin_loss(
+    def spin_loss( # Compute batch metrics calls this method
         self,
         policy_real_logps: torch.FloatTensor,
         policy_generated_logps: torch.FloatTensor,
@@ -444,7 +444,7 @@ class SPINTrainer(Trainer):
 
         logits = pi_logratios - ref_logratios
 
-        if self.loss_type == "sigmoid":
+        if self.loss_type == "sigmoid": # we use this
             losses = -F.logsigmoid(self.beta * logits)
         elif self.loss_type == "hinge":
             losses = torch.relu(1 - self.beta * logits)
@@ -484,7 +484,7 @@ class SPINTrainer(Trainer):
         if logits.shape[:-1] != labels.shape:
             raise ValueError("Logits (batch and sequence length dim) and labels must have the same shape.")
 
-        if not self.is_encoder_decoder:
+        if not self.is_encoder_decoder: # is gone thorug 
             labels = labels[:, 1:].clone()
             logits = logits[:, :-1, :]
         loss_mask = labels != self.label_pad_token_id
@@ -509,7 +509,7 @@ class SPINTrainer(Trainer):
         concatenated_batch = self.concatenated_inputs(batch)
         len_real = batch["real_labels"].shape[0]
 
-        model_kwargs = (
+        model_kwargs = ( # just an empty dictionary
             {
                 "labels": concatenated_batch["concatenated_labels"],
                 "decoder_input_ids": concatenated_batch.pop("concatenated_decoder_input_ids", None),
@@ -549,7 +549,7 @@ class SPINTrainer(Trainer):
             if self.ref_adapter_name:
                 self.model.set_adapter(self.model_adapter_name or "default")
 
-    def get_batch_metrics(
+    def get_batch_metrics( # Compute loss calls this method
         self,
         model,
         batch: Dict[str, Union[List, torch.LongTensor]],
@@ -596,12 +596,14 @@ class SPINTrainer(Trainer):
         metrics[f"{prefix}rewards/margins"] = (real_rewards - generated_rewards).cpu().mean()
         metrics[f"{prefix}logps/generated"] = policy_generated_logps.detach().cpu().mean()
         metrics[f"{prefix}logps/real"] = policy_real_logps.detach().cpu().mean()
+        metrics[f"{prefix}logps/ref_generated"] = opponent_generated_logps.detach().cpu().mean() # SRIJITH : ADDED THIS AND BELOW LINE
+        metrics[f"{prefix}logps/ref_real"] = opponent_real_logps.detach().cpu().mean()
         metrics[f"{prefix}logits/generated"] = policy_generated_logits.detach().cpu().mean()
         metrics[f"{prefix}logits/real"] = policy_real_logits.detach().cpu().mean()
 
         return losses.mean(), metrics
 
-    def compute_loss(
+    def compute_loss( # HF trainer calls compute loss method
         self,
         model: Union[PreTrainedModel, nn.Module],
         inputs: Dict[str, Union[torch.Tensor, Any]],
