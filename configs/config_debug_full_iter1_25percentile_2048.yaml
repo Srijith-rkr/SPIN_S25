@@ -1,0 +1,64 @@
+# Model arguments
+model_name_or_path: /data/tir/projects/tir7/user_data/srijithr/spin_filtering_outputs/iter0_HW_LL-5
+# model_revision: ac6e600eefcce74f5e8bae1035d4f66019e93190
+
+# Data training arguments
+dataset_mixer:
+  #HuggingFaceH4/ultrafeedback_binarized: 1.0
+  UCLA-AGI/SPIN_iter0: 1.0
+
+use_local_dataset : true
+local_dataset_mixer:
+  - /home/srijithr/iterative-alignment/SPIN_implementation/scored_data/generated_using_iter0_normal/SPIN_iter1_gen_from_iter0_model_HW_LL_25_percentile.json
+  
+dataset_splits:
+- train
+- test
+preprocessing_num_workers: 4
+
+# Trainer arguments
+bf16: true
+beta: 0.1
+do_eval: true
+evaluation_strategy: "steps"
+eval_steps: 30
+gradient_accumulation_steps: 16
+gradient_checkpointing: true
+hub_model_id: zephyr-7b-spin
+learning_rate: 5.0e-7
+log_level: info
+logging_steps: 2
+lr_scheduler_type: linear
+max_length: 2048
+max_prompt_length: 512
+num_train_epochs: 2
+optim: rmsprop
+output_dir: /data/tir/projects/tir7/user_data/srijithr/spin_filtering_outputs
+per_device_train_batch_size: 1
+per_device_eval_batch_size: 1
+push_to_hub: false
+# save_strategy: "epoch"
+save_strategy: "steps"
+save_steps: 30
+save_total_limit: null
+seed: 42
+warmup_ratio: 0.1
+
+# # Added to change default arguments
+# # output_dir: /data/tir/projects/tir7/user_data/srijithr/spin_outputs
+run_name: you_forgot_to_set_name_your_run
+# use_peft : true
+report_to: wandb
+# # lora_target_modules: 'k_proj q_proj v_proj'
+# # lora_target_modules: 'k_proj q_proj v_proj'
+# # lora_modules_to_save:
+# # - q_proj
+# # - k_proj
+# # - v_proj
+# lora_target_modules:
+# - q_proj
+# - k_proj
+# - v_proj
+# # Below are hard-coded
+# # bias: "none"
+# # task_type: "CAUSAL_LM"
